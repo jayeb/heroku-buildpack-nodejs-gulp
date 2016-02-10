@@ -23,28 +23,6 @@ semver_range=$(cat $build_dir/package.json | $bp_dir/vendor/jq -r .engines.node)
 # Resolve node version using semver.io
 node_version=$(curl --silent --get --data-urlencode "range=${semver_range}" https://semver.io/node/resolve)
 
-if [ -d "$env_dir" ]; then
-  status "Exporting config vars to environment"
-  export_env_dir $env_dir
-fi
-
-if [ "$GIT_SSH_KEY" != "" ]; then
-  status "Detected SSH key for git.  launching ssh-agent and loading key"
-  echo $GIT_SSH_KEY | base64 --decode > id_rsa
-  # launch ssh-agent, we'll use it to serve our ssh key
-  # and kill it towards the end of the buildpack's run
-  eval `ssh-agent -s`
-  # ssh-add doesn't like the default 644
-  chmod 600 id_rsa
-  # We're not supporting passphrases at this time.  We could pull that in
-  # from config as well, but then we'd have to setup expect or some other
-  # terminal automation tool to feed it into ssh-add.
-  ssh-add id_rsa
-  rm id_rsa
-  # Add github to the list of known hosts - ignore the warning or else set -e will abort the deployment
-  ssh -oStrictHostKeyChecking=no -T git@github.com || true
-fi
-
 # Recommend using semver ranges in a safe manner
 if [ "$semver_range" == "null" ]; then
   protip "Specify a node version in package.json"
@@ -126,7 +104,27 @@ if test -f $build_dir/bower.json; then
 
 fi
 
+if [ -d "$env_dir" ]; then
+  status "Exporting config vars to environment"
+  export_env_dir $env_dir
+fi
 
+if [ "$GIT_SSH_KEY" != "" ]; then
+  status "Detected SSH key for git.  launching ssh-agent and loading key"
+  echo $GIT_SSH_KEY | base64 --decode > id_rsa
+  # launch ssh-agent, we'll use it to serve our ssh key
+  # and kill it towards the end of the buildpack's run
+  eval `ssh-agent -s`
+  # ssh-add doesn't like the default 644
+  chmod 600 id_rsa
+  # We're not supporting passphrases at this time.  We could pull that in
+  # from config as well, but then we'd have to setup expect or some other
+  # terminal automation tool to feed it into ssh-add.
+  ssh-add id_rsa
+  rm id_rsa
+  # Add github to the list of known hosts - ignore the warning or else set -e will abort the deployment
+  ssh -oStrictHostKeyChecking=no -T git@github.com || true
+fi
 
 
 # Scope config var availability only to `npm install` & `bower install`
